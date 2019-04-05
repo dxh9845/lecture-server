@@ -34,13 +34,9 @@ export default class GoogleSpeechAPI {
             .on('error', onError)
             .on('data', onData); 
 
-        setTimeout(() => {
-            this.stopper = true
-        }, 5000);
     }
 
     endStream() {
-        console.log("Ending the stream");
         if (this.recognizeStream) {
             this.recognizeStream.end();
         }
@@ -48,8 +44,7 @@ export default class GoogleSpeechAPI {
     }
 
     sendAudio(audioData) {
-        if (this.stopper) {
-            console.log("Hey it exists")
+        if (this.recognizeStream) {
             this.recognizeStream.write(audioData);
         }
     }
