@@ -1,6 +1,7 @@
 "use strict";
 
 import speech from '@google-cloud/speech';
+const bSpeech = speech.v1p1beta1;
 
 export default class GoogleSpeechAPI {
     client;
@@ -10,14 +11,22 @@ export default class GoogleSpeechAPI {
     recognizeStream;
 
     constructor() {
-        this.client = new speech.SpeechClient();
+        this.client = new bSpeech.SpeechClient();
         this.request = {
             config: {
                 encoding: 'LINEAR16',
                 sampleRateHertz: 16000,
                 languageCode: 'en-US'
             },
-            interimResults: true
+            interimResults: true,
+            enableAutomaticPunctuation: true,
+            metadata: {
+                interactionType: "PRESENTATION",
+                audioTopic: "Computer Science Lecture on Binary Search Trees"
+            },
+            speechContexts: [{
+                phrases: ["imshow", "Herzig", "pyplot", "homogeneity", "Maya Rafalowicz"]
+            }]
         }
 
         this.initializeGoogleRequest = this.initializeGoogleRequest.bind(this);
