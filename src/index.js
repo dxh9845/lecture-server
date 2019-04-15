@@ -3,6 +3,7 @@ import { Server } from 'http';
 import SocketServer from 'socket.io';
 import bodyParser from 'body-parser';
 import GoogleSpeech from './GoogleSpeechAPI';
+import GoogleNLP from './GoogleNLP';
 
 // Routes
 import ContextRouter from './routes/context.js';
@@ -14,6 +15,7 @@ dotenv.config();
 
 // Google Speech
 const speechClient = new GoogleSpeech();
+const nlpClient = new GoogleNLP();
 
 
 
@@ -25,6 +27,7 @@ app.use('/context', ContextRouter);
 const server = Server(app);
 const io = SocketServer(server);
 
+let lastTranscript = '';
 
 io.on('connection', (client) => {
     
@@ -36,6 +39,11 @@ io.on('connection', (client) => {
                 ? `Transcription: ${data.results[0].alternatives[0].transcript}\n`
                 : `\n\nReached transcription time limit, press Ctrl+C\n`);
         this.emit('textSend', data);
+        
+        if (data.results[0].isFinal) {
+            lastTranscript = data.results[0].alternatives[0].transcript;
+            console.log(lastTranscript);
+        }
 
         // if end of utterance, let's restart stream
         // this is a small hack. After 65 seconds of silence, the stream will still throw an error for speech length limit
@@ -75,6 +83,18 @@ io.on('connection', (client) => {
     });
 
     client.on('end-stream', () => speechClient.endStream())
+
+    client.on('get-nlp', () => {
+        nlpClient.getSalience(lastTranscript)
+            .then((topic) => {
+                if (topic) {
+                    console.log(topic);
+                    client.emit('topicSend', topic);
+                } else {
+                    client.emit('topicSend', '')
+                }  
+            });
+    });
 })
 
 // Listen to our port
