@@ -1,6 +1,7 @@
 import express from 'express';
 import { Server } from 'http';
 import SocketServer from 'socket.io';
+import cors from 'cors';
 import bodyParser from 'body-parser';
 import GoogleSpeech from './GoogleSpeechAPI';
 import GoogleNLP from './GoogleNLP';
@@ -16,12 +17,11 @@ dotenv.config();
 // Google Speech
 const speechClient = new GoogleSpeech();
 const nlpClient = new GoogleNLP();
-
-
-
+    
 // Set up the server and the websocket 
 const app = express();
 app.use(bodyParser.json())
+app.use(cors());
 app.get('/', (req, res) => res.sendStatus(200));
 app.use('/context', ContextRouter);
 const server = Server(app);

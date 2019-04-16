@@ -16,17 +16,16 @@ export default class GoogleSpeechAPI {
             config: {
                 encoding: 'LINEAR16',
                 sampleRateHertz: 16000,
-                languageCode: 'en-US'
+                languageCode: 'en-US',
+                enableAutomaticPunctuation: true,
+                speechContexts: [{
+                    phrases: []
+                }]
             },
             interimResults: true,
-            enableAutomaticPunctuation: true,
             metadata: {
                 interactionType: "PRESENTATION",
-                audioTopic: "Computer Science Lecture on Binary Search Trees"
             },
-            speechContexts: [{
-                phrases: ["imshow", "Herzig", "pyplot", "homogeneity", "Maya Rafalowicz"]
-            }]
         }
 
         this.initializeGoogleRequest = this.initializeGoogleRequest.bind(this);
