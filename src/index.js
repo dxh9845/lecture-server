@@ -13,10 +13,6 @@ import ContextRouter from './routes/context.js';
 const port = (process.env.PORT || 8081)
 import dotenv from 'dotenv';
 dotenv.config();
-
-// Google API Clients
-const speechClient = new GoogleSpeech();
-const nlpClient = new GoogleNLP();
     
 // Set up the server and the websocket 
 const app = express();
@@ -27,11 +23,11 @@ app.use('/context', ContextRouter);
 const server = Server(app);
 const io = SocketServer(server);
 
-let lastTranscript = '';
-
 io.on('connection', (client) => {
     console.log('Client connected to server.');
-
+    // Google API Clients
+    const speechClient = new GoogleSpeech();
+    const nlpClient = new GoogleNLP();
     let outputTranscription = function(data) {
         process.stdout.write(
             (data.results[0] && data.results[0].alternatives[0])
@@ -41,8 +37,7 @@ io.on('connection', (client) => {
         // this.emit('textSend', data);
         
         if (data.results[0].isFinal) {
-            lastTranscript = data.results[0].alternatives[0].transcript;
-            console.log(lastTranscript);
+            this.lastTranscript = data.results[0].alternatives[0].transcript;
         }
 
         // if end of utterance, let's restart stream
@@ -85,7 +80,7 @@ io.on('connection', (client) => {
     client.on('end-stream', () => speechClient.endStream())
 
     client.on('get-nlp', () => {
-        nlpClient.getSalience(lastTranscript)
+        nlpClient.getSalience(client.lastTranscript)
             .then((topic) => {
                 if (topic) {
                     client.emit('topicSend', topic);
