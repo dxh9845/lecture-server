@@ -6,7 +6,11 @@ export default class GoogleSpeechAPI {
     client;
 
     constructor() {
-        this.client = new language.LanguageServiceClient();
+        this.client = new language.LanguageServiceClient({
+            credentials: {
+                private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+                client_email: process.env.GOOGLE_CLIENT_EMAIL
+          }});
         this.getSalience = this.getSalience.bind(this);
     }
 

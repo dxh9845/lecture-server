@@ -11,7 +11,11 @@ export default class GoogleSpeechAPI {
     recognizeStream;
 
     constructor() {
-        this.client = new bSpeech.SpeechClient();
+        this.client = new bSpeech.SpeechClient({
+            credentials: {
+                private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+                client_email: process.env.GOOGLE_CLIENT_EMAIL
+          }});
         this.request = {
             config: {
                 encoding: 'LINEAR16',
