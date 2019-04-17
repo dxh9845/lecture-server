@@ -5,6 +5,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import GoogleSpeech from './GoogleSpeechAPI';
 import GoogleNLP from './GoogleNLP';
+import randomstring from 'randomstring';
 
 // Routes
 import ContextRouter from './routes/context.js';
@@ -14,7 +15,7 @@ const port = (process.env.PORT || 8081)
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Google Speech
+// Google API Clients
 const speechClient = new GoogleSpeech();
 const nlpClient = new GoogleNLP();
     
@@ -30,7 +31,6 @@ const io = SocketServer(server);
 let lastTranscript = '';
 
 io.on('connection', (client) => {
-    
     console.log('Client connected to server.');
 
     let outputTranscription = function(data) {
@@ -38,7 +38,8 @@ io.on('connection', (client) => {
             (data.results[0] && data.results[0].alternatives[0])
                 ? `Transcription: ${data.results[0].alternatives[0].transcript}\n`
                 : `\n\nReached transcription time limit, press Ctrl+C\n`);
-        this.emit('textSend', data);
+        io.to(this.room).emit('textSend', data);
+        // this.emit('textSend', data);
         
         if (data.results[0].isFinal) {
             lastTranscript = data.results[0].alternatives[0].transcript;
@@ -88,12 +89,23 @@ io.on('connection', (client) => {
         nlpClient.getSalience(lastTranscript)
             .then((topic) => {
                 if (topic) {
-                    console.log(topic);
                     client.emit('topicSend', topic);
                 } else {
                     client.emit('topicSend', '')
                 }  
             });
+    });
+
+    client.on('new-lecture', (lectureRoom) => {
+        client.room = lectureRoom;
+        client.join(lectureRoom);
+        console.log(`New room created: ${client.room}`)
+
+    });
+
+    client.on('join-lecture', (lectureRoom) => {
+        client.join(lectureRoom)
+        console.log(`Room joined: ${lectureRoom}`)
     });
 })
 
