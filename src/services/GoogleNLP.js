@@ -2,7 +2,7 @@
 
 import language from '@google-cloud/language';
 
-export default class GoogleSpeechAPI {
+export default class GoogleNLPAPI {
     client;
 
     constructor() {
