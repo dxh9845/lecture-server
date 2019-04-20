@@ -22,7 +22,7 @@ router.put('/', async (req, res) => {
         // Get our phrases from the incoming context object
         const { phrases } = req.body;
         // Get our in memory context and speech client
-        const { context, speechClient, restartStream } = req.app.locals;
+        const { context, updateContext, restartStream } = req.app.locals;
         // console.log(context);
         console.log(req.body)
 
@@ -31,8 +31,9 @@ router.put('/', async (req, res) => {
         let phraseSet = new Set(context.phrases);
         context.phrases = Array.from(phraseSet);
 
-        // Let the Google Service know this context has been updated
-        speechClient.updateContext(context);
+        // Alert the socket to update the Google client's speech context  
+        updateContext(context);
+
         // Alert the socket to restart the service
         restartStream();
 
@@ -49,7 +50,7 @@ router.delete('/', async (req, res) => {
     try {
         const { index } = req.body;
         // Get the context object from memory
-        const { context, speechClient, restartStream } = req.app.locals;
+        const { context, updateContext, restartStream } = req.app.locals;
         const { phrases } = context;
         
         // Get the phrases and delete the index
@@ -61,7 +62,7 @@ router.delete('/', async (req, res) => {
         context.phrases = phrases;
 
         // Let the Google Service know this context has been updated
-        speechClient.updateContext(context);
+        updateContext(context);
         restartStream();
 
         // Write to the file

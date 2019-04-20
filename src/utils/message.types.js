@@ -9,6 +9,14 @@ export const END_STREAM = 'endStream';
 export const AUDIO_DATA = 'audioChange';
 export const TEXT_SEND = 'textSend';
 
+// Context
+export const UPDATE_CONTEXT = 'updateContext';
+export const DELETE_CONTEXT = 'deleteContext';
+
 // NLP
 export const GET_NLP = 'getNlp';
 export const TOPIC_SEND = 'topicSend';
+
+// Lectures
+export const NEW_LECTURE = 'newLecture';
+export const JOIN_LECTURE = 'joinLecture';

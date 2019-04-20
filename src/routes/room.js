@@ -1,6 +1,7 @@
 import express from 'express';
 import fs from 'fs';
 import util from 'util';
+import { format } from "url";
 const router = express.Router();
 
 /**
@@ -8,28 +9,31 @@ const router = express.Router();
  */
 router.get('/create', (req, res) => {
     // Get the socket defined from oir middleware
-    const { io } = req.app.locals; 
+    const { io, createNewLecture } = req.app.locals; 
     const { roomId } = req.query;
 
     if (!roomId) {
-        res.status(400).send('Missing query parameter roomId.')
+        res.status(400).send({ error: 'Missing query parameter roomId.' })
+    } else {
+        // serverEmitter.emit('newLecture', roomId);
+
+        createNewLecture(roomId);
+
+        const baseURL = format({
+            protocol: req.protocol,
+            host: req.get('host'),
+            // pathname: req.originalUrl
+        });
+
+        let roomLink = `${baseURL}/room/join?roomId=${roomId}`;
+
+        res
+            .status(200)
+            .send({
+                message: `Created a new lecture recording at ${roomLink}.`,
+                roomLink: roomLink
+            });    
     }
-
-    // Create and join the room
-    io.room = roomId;
-    io.join(roomId);
-
-    console.log(`Created the room ${client}`);
-    
-
-    let roomLink = `${req.hostname}/room/join/${joinId}`;
-
-    res
-        .status(200)
-        .send({ 
-            message: `Created a new lecture recording at ${roomLink}.`,
-            roomLink: roomLink
-        });    
 })
 
 /**
@@ -38,8 +42,11 @@ router.get('/create', (req, res) => {
 router.get('/join/:roomId', (req, res) => { 
     // Get the room id from the request
     const { roomId } = req.params;
-    const { io } = req.app.locals; 
-    io.join(roomId);
+    const { io, joinNewLecture } = req.app.locals; 
+
+    // io.join(roomId);
+    joinNewLecture(roomId);
+
     console.log(`Participant at ${req.ip} joined room ${roomId}`);
     res.status(200).send();
 });

@@ -11,7 +11,11 @@ export default class GoogleSpeechAPI {
     recognizeStream;
 
     get lastTranscript() {
-        return this.lastTranscript;
+        return this._lastTranscript;
+    }
+
+    set lastTranscript(val) {
+        this._lastTranscript = val;
     }
 
     constructor() {
@@ -67,7 +71,6 @@ export default class GoogleSpeechAPI {
         this.recognizeStream = this.client.streamingRecognize(this.request)
             .on('error', e => { console.error(e) })
             .on('data', (data) => {
-                console.log(data);
                 // Call our client callback to send the data
                 clientCallback(data);
 
@@ -76,7 +79,7 @@ export default class GoogleSpeechAPI {
                 // Resets the stream 
                 if (data.results[0] && data.results[0].isFinal) {
                     // Set our last transcript
-                    this.lastTranscript = data.results[0].alternatives[0].transcript;
+                    this._lastTranscript = data.results[0].alternatives[0].transcript;
                     // End the stream
                     this.endStream();
                     // Start again with the same parameterss
@@ -90,7 +93,7 @@ export default class GoogleSpeechAPI {
             this.recognizeStream.end();
         }
         this.recognizeStream = null;
-        this.lastTranscript = '';
+        this._lastTranscript = '';
     }
 
     sendAudio(audioData) {

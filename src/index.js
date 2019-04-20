@@ -1,11 +1,12 @@
 import express from 'express';
+import { EventEmitter } from 'events';
 import { Server } from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import SocketServer from 'socket.io';
 
 // Middleware
-import GoogleMiddleware from './middleware/GoogleMiddleware'; 
+import ContextMiddleware from './middleware/ContextMiddleware'; 
 import SocketMiddleware from './middleware/SocketMiddleware'; 
 
 import GoogleSpeechWrapper from './services/GoogleSpeech.js';
@@ -23,7 +24,7 @@ import { createTerminus } from '@godaddy/terminus';
 
 // Sockets
 import { CONNECTION } from './utils/message.types';
-import SocketSetup from './services/SocketSetup';
+import { teacherSocketSetup, studentSocketSetup } from './services/SocketSetup';
 
 
 const port = (process.env.PORT || 8081)
@@ -40,8 +41,16 @@ const app = express();
 const server = Server(app);
 const io = SocketServer(server);
 
-// Make the initial connection to the socket
-io.on(CONNECTION, SocketSetup(speechClient))
+// Create a custom event bus for server side conmmunication
+const serverEmitter = new EventEmitter();
+
+// Create teacher and student namespaces for separation of concerns
+const teacherNamespace = io.of('/teacher');
+const studentNamespace = io.of('/student');
+
+// Prep teacher and student connections
+teacherNamespace.on(CONNECTION, teacherSocketSetup(serverEmitter));
+studentNamespace.on(CONNECTION, studentSocketSetup(serverEmitter));
 
 /******************************************************* 
  *                       MIDDLEWARE                    *
@@ -49,8 +58,8 @@ io.on(CONNECTION, SocketSetup(speechClient))
 app.use(bodyParser.json());
 app.use(cors());
 // Add our speech client and context object to our web requests
-app.use(GoogleMiddleware({ speechClient }));
-app.use(SocketMiddleware({ io }))
+app.use(ContextMiddleware());
+app.use(SocketMiddleware({ io, serverEmitter }))
 
 /*******************************************************
  *                        ROUTING                      *
