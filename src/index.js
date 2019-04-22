@@ -1,36 +1,30 @@
 import express from 'express';
-import { EventEmitter } from 'events';
+// import { EventEmitter } from 'events';
 import { Server } from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import SocketServer from 'socket.io';
+import GoogleSpeechWrapper from './services/GoogleSpeech';
+import GoogleNLPWrapper from './services/GoogleNLP';
+import randomstring from 'randomstring';
 
 // Middleware
-import ContextMiddleware from './middleware/ContextMiddleware'; 
-import SocketMiddleware from './middleware/SocketMiddleware'; 
+// import ContextMiddleware from './middleware/ContextMiddleware'; 
 
-import GoogleSpeechWrapper from './services/GoogleSpeech.js';
-import GoogleNLP from './services/GoogleNLP';
-import ContextService from './services/ContextService';
+
+// import ContextService from './services/ContextService';
 
 // Routes
 import ContextRouter from './routes/context.js';
-import RoomRouter from './routes/room.js';
 
 // Configuration setup
+const port = (process.env.PORT || 8081)
 import dotenv from 'dotenv';
 dotenv.config();
-import { createTerminus } from '@godaddy/terminus';
+// import { createTerminus } from '@godaddy/terminus';
 
-// Sockets
-import { CONNECTION } from './utils/message.types';
-import { teacherSocketSetup, studentSocketSetup } from './services/SocketSetup';
-
-
-const port = (process.env.PORT || 8081)
-
-const speechClient = new GoogleSpeechWrapper();
-const nlpClient = new GoogleNLP();
+// Sockets messages
+import { CONNECTION, MESSAGES, JOIN, BROAD, START_STREAM, AUDIO_DATA, END_STREAM, TEXT_SEND, GET_NLP, TOPIC_SEND, NEW_LECTURE, ROOM_ID, JOIN_LECTURE, END_LECTURE, SEND_CONTEXT } from './utils/message.types';
     
 // Set up the server
 const app = express();
@@ -41,16 +35,97 @@ const app = express();
 const server = Server(app);
 const io = SocketServer(server);
 
+// Track rooms
+let rooms = new Set();
+
 // Create a custom event bus for server side conmmunication
-const serverEmitter = new EventEmitter();
+// const serverEmitter = new EventEmitter();
 
-// Create teacher and student namespaces for separation of concerns
-const teacherNamespace = io.of('/teacher');
-const studentNamespace = io.of('/student');
+io.on(CONNECTION, (socket) => {
+    console.log('Client connected to server.');
 
-// Prep teacher and student connections
-teacherNamespace.on(CONNECTION, teacherSocketSetup(serverEmitter));
-studentNamespace.on(CONNECTION, studentSocketSetup(serverEmitter));
+    socket.nlpClient = new GoogleNLPWrapper();
+
+    // Send a message to the teacher that it completes the handshake
+    socket.on(JOIN, (d) => { socket.emit(MESSAGES, 'Client has connected ') });
+
+
+    // When we receive a message, emit it to anyone who wants it 
+    socket.on(MESSAGES, (data) => { socket.emit(BROAD, data) });
+
+    // On starting an audio recognition stream, we need to initialize our request
+    const onStartStream = () => {
+        socket.speechClient.startRecognizeStream((data) => io.in(socket.room).emit(TEXT_SEND, data));
+
+    }
+
+    // Listen for start stream events from clients
+    socket.on(START_STREAM, onStartStream);
+
+    socket.on(END_STREAM, (d) => { socket.speechClient.endStream(); });
+
+    // Listen for audio data when a teacher speaks
+    socket.on(AUDIO_DATA, (ad) => socket.speechClient.sendAudio(ad) );
+
+    // On creating a lecture, create a socket room 
+    const onNewLecture = () => {
+        let lectureRoom = '';
+        do {
+            lectureRoom = randomstring.generate({
+                length: 5,
+                charset: 'alphabet',
+                capitalization: 'uppercase',
+            });
+        } while (lectureRoom in rooms);
+        socket.emit(ROOM_ID, lectureRoom);
+        socket.room = lectureRoom;
+        socket.join(lectureRoom);
+        rooms.add(lectureRoom)
+        socket.speechClient = new GoogleSpeechWrapper();
+        console.log(`New room created: ${socket.room}`)
+    }
+
+    socket.on(NEW_LECTURE, onNewLecture);
+
+    // Update the context
+    const onUpdateContext = (contextObj) => {
+        console.log(contextObj)
+        socket.speechClient.updateContext(contextObj);
+        console.log(socket.speechClient.config)
+        if (socket.speechClient.recognizeStream) {
+            onStartStream();
+        }
+    }
+    socket.on(SEND_CONTEXT, onUpdateContext);
+
+    // When a student joins a lecture, add them to the socket room
+    const onJoinLecture = (lectureRoom) => {
+        socket.join(lectureRoom);
+        console.log(`Room joined: ${lectureRoom}`)
+    }
+
+    socket.on(JOIN_LECTURE, onJoinLecture);
+
+    // When teacher ends a lecture, free up the room
+    const onEndLecture = (lectureRoom) => {
+    }
+
+    socket.on(END_LECTURE, onEndLecture)
+
+    socket.on(GET_NLP, (lastTranscript) => {
+        console.log(lastTranscript)
+        socket.nlpClient.getSalience(lastTranscript)
+            .then((topic) => {
+                if (topic) {
+                    socket.emit(TOPIC_SEND, topic);
+                } else {
+                    socket.emit(TOPIC_SEND, '')
+                }
+            })
+    });
+
+    
+});
 
 /******************************************************* 
  *                       MIDDLEWARE                    *
@@ -58,8 +133,7 @@ studentNamespace.on(CONNECTION, studentSocketSetup(serverEmitter));
 app.use(bodyParser.json());
 app.use(cors());
 // Add our speech client and context object to our web requests
-app.use(ContextMiddleware());
-app.use(SocketMiddleware({ io, serverEmitter }))
+// app.use(ContextMiddleware());
 
 /*******************************************************
  *                        ROUTING                      *
@@ -68,19 +142,18 @@ app.get('/', (req, res) => {
     res.status(200).send();
 });
 
-app.use('/context', ContextRouter);
-app.use('/room', RoomRouter);
+// app.use('/context', ContextRouter);
 
 
 /*******************************************************
  *              IN-MEMORY CONTEXT                      *
  ******************************************************/
-createTerminus(server, {
-    // signal: 'SIGINT',
-    signals: ['SIGINT', 'SIGKILL', 'SIGTERM'],
-    // On server shutdown, write back to our context
-    onSignal: () => ContextService.writeContext(app.locals.context),
-});
+// createTerminus(server, {
+//     // signal: 'SIGINT',
+//     signals: ['SIGINT', 'SIGKILL', 'SIGTERM'],
+//     // On server shutdown, write back to our context
+//     onSignal: () => ContextService.writeContext(app.locals.context),
+// });
 
 
 

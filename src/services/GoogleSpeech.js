@@ -19,7 +19,11 @@ export default class GoogleSpeechAPI {
     }
 
     constructor() {
-        this.client = new bSpeech.SpeechClient();
+        this.client = new bSpeech.SpeechClient({
+            credentials: {
+                private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+                client_email: process.env.GOOGLE_CLIENT_EMAIL
+          }});
         this.config = {
             encoding: 'LINEAR16',
             sampleRateHertz: 16000,
@@ -40,7 +44,7 @@ export default class GoogleSpeechAPI {
             },
         }
 
-        this.lastTranscript = '';
+        this._lastTranscript = '';
 
         this.startRecognizeStream = this.startRecognizeStream.bind(this);
         this.sendAudio = this.sendAudio.bind(this);
@@ -67,7 +71,6 @@ export default class GoogleSpeechAPI {
      * @param clientCallback {Function} - The function that will send our data on our client instance.
      */
     startRecognizeStream(clientCallback) {
-
         this.recognizeStream = this.client.streamingRecognize(this.request)
             .on('error', e => { console.error(e) })
             .on('data', (data) => {
