@@ -49,14 +49,22 @@ io.on(CONNECTION, (socket) => {
     // Send a message to the teacher that it completes the handshake
     socket.on(JOIN, (d) => { socket.emit(MESSAGES, 'Client has connected ') });
 
+    socket.on('disconnect', (reason) => {
+        if (reason === 'io server disconnect') {
+          socket.connect();
+        } else if (reason === 'transport close' && socket.room) {
+            onEndLecture();
+        }
+      });
 
     // When we receive a message, emit it to anyone who wants it 
     socket.on(MESSAGES, (data) => { socket.emit(BROAD, data) });
 
     // On starting an audio recognition stream, we need to initialize our request
     const onStartStream = () => {
-        socket.speechClient.startRecognizeStream((data) => io.in(socket.room).emit(TEXT_SEND, data));
-
+        if (socket.room) {
+            socket.speechClient.startRecognizeStream((data) => io.in(socket.room).emit(TEXT_SEND, data));
+        }
     }
 
     // Listen for start stream events from clients
@@ -108,6 +116,21 @@ io.on(CONNECTION, (socket) => {
 
     // When teacher ends a lecture, free up the room
     const onEndLecture = (lectureRoom) => {
+        io.of('/').in(lectureRoom).clients((err, clients) => {
+            if (clients.length > 0) {
+                console.log(`Connected clients: ${clients.length}`);
+                clients.forEach((socket_id) => {
+                    io.sockets.sockets[socket_id].leave(lectureRoom);
+                });
+            }
+            rooms.delete(lectureRoom);
+        });
+        socket.room = null;
+        // console.log(io.sockets.clients(lectureRoom))
+        // console.log(io.sockets.adapter.rooms[lectureRoom])
+        // rooms.delete(roomId);
+        // console.log(`Lecture at room ${roomId} ended.`);
+
     }
 
     socket.on(END_LECTURE, onEndLecture)
