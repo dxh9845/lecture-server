@@ -1,4 +1,5 @@
 export const CONNECTION = 'connection';
+export const DISCONNECT = 'disconnect';
 export const JOIN = 'join';
 export const BROAD = 'broad'
 export const MESSAGES = 'message';

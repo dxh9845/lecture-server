@@ -24,7 +24,7 @@ dotenv.config();
 // import { createTerminus } from '@godaddy/terminus';
 
 // Sockets messages
-import { CONNECTION, MESSAGES, JOIN, BROAD, START_STREAM, AUDIO_DATA, END_STREAM, TEXT_SEND, GET_NLP, TOPIC_SEND, NEW_LECTURE, ROOM_ID, JOIN_LECTURE, END_LECTURE, SEND_CONTEXT } from './utils/message.types';
+import { CONNECTION, DISCONNECT, MESSAGES, JOIN, BROAD, START_STREAM, AUDIO_DATA, END_STREAM, TEXT_SEND, GET_NLP, TOPIC_SEND, NEW_LECTURE, ROOM_ID, JOIN_LECTURE, END_LECTURE, SEND_CONTEXT } from './utils/message.types';
     
 // Set up the server
 const app = express();
@@ -49,7 +49,7 @@ io.on(CONNECTION, (socket) => {
     // Send a message to the teacher that it completes the handshake
     socket.on(JOIN, (d) => { socket.emit(MESSAGES, 'Client has connected ') });
 
-    socket.on('disconnect', (reason) => {
+    socket.on(DISCONNECT, (reason) => {
         if (reason === 'io server disconnect') {
           socket.connect();
         } else if (reason === 'transport close' && socket.room) {
@@ -97,11 +97,12 @@ io.on(CONNECTION, (socket) => {
 
     // Update the context
     const onUpdateContext = (contextObj) => {
-        console.log(contextObj)
-        socket.speechClient.updateContext(contextObj);
-        console.log(socket.speechClient.config)
-        if (socket.speechClient.recognizeStream) {
-            onStartStream();
+        if (socket.speechClient){
+            socket.speechClient.updateContext(contextObj);
+            console.log(socket.speechClient.config)
+            if (socket.speechClient.recognizeStream) {
+                onStartStream();
+            }
         }
     }
     socket.on(SEND_CONTEXT, onUpdateContext);
@@ -126,10 +127,6 @@ io.on(CONNECTION, (socket) => {
             rooms.delete(lectureRoom);
         });
         socket.room = null;
-        // console.log(io.sockets.clients(lectureRoom))
-        // console.log(io.sockets.adapter.rooms[lectureRoom])
-        // rooms.delete(roomId);
-        // console.log(`Lecture at room ${roomId} ended.`);
 
     }
 
