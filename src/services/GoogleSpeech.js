@@ -26,7 +26,7 @@ export default class GoogleSpeechAPI {
           }});
         this.config = {
             encoding: 'LINEAR16',
-            sampleRateHertz: 16000,
+            sampleRateHertz: 48000,
             languageCode: 'en-US',
             enableAutomaticPunctuation: true,
             speechContexts: [
